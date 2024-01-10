@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+function menu {
+	blink() 	{ printf '\033[?25h'; }
+	noblink() 	{ printf '\033[?25l'; }
+	list() 		{ printf " $1 "; }
+	list2() 	{ printf '  %s' "$1"; }
+	highlt() 	{ printf "\033[7m $1 \033[0m"; }
+	highlt2() 	{ printf '\033[34m> %s\033[0m' "$1"; }
+	curpos() 	{ printf '\033[%s;%sH' "$1" "$2"; }
+	getrows() 	{ IFS=';' read -rsdR -p $'\E[6n' ROW COL; printf "${ROW#*[}"; }
+	getkey() 	{ local key; IFS= read -rsn1 key
+		case $key in
+		'k') printf 'up'   ;; 	'l') printf 'right' ;;
+		'j') printf 'down' ;; 	'h') printf 'left'  ;;
+		'')  printf 'enter';; 	$'\x1b') read -rsn2 key
+			case $key in
+			[A | k]) printf 'up'   ;; 	[C | l]) printf 'right' ;;
+			[B | j]) printf 'down' ;; 	[D | h]) printf 'left'  ;;
+			esac
+			;;
+		esac
+	}
+
+	trap 'blink; stty echo; newline; exit' 2
+	printf '\n%.0s' "$@"
+	noblink
+
+	local selector=0
+	local num_cols=$1
+	local startrow=$(($(getrows) - $#))
+	local offset=$(($(tput cols) / 4))
+
+	while true; do
+		for ((i = 0; i < $#; i++)); do
+			curpos $((startrow + i / num_cols + 1)) $((offset * (i % num_cols) + 1))
+			if ((i == selector)); then
+				highlt2 "${options[i]}"
+			else
+				list2 "${options[i]}"
+			fi
+		done
+		case $(getkey) in
+		up)
+			((selector -= num_cols))
+			if ((selector < 0)); then
+				selector=$((selector + num_cols))
+			fi
+			;;
+		down)
+			((selector += num_cols))
+			if ((selector >= ${#options[@]})); then
+				selector=$((selector - num_cols))
+			fi
+			;;
+		left)
+			((selector -= 1))
+			if ((selector % num_cols == num_cols - 1 || selector < 0)); then
+				selector=$((selector + 1))
+			fi
+			;;
+		right)
+			((selector += 1))
+			if ((selector % num_cols == 0 || selector >= ${#options[@]})); then
+				selector=$((selector - 1))
+			fi
+			;;
+		enter) break ;;
+		esac
+	done
+
+	newline; blink
+	return $selector
+}
