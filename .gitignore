@@ -1,0 +1,5 @@
+# .gitignore
+
+# Exclude LICENSE and README.md
+LICENSE
+README.md
